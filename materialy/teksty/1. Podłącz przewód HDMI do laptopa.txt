@@ -1,0 +1,6 @@
+1. Podłącz przewód HDMI do laptopa i monitora.
+2. Włącz monitor do gniazdka elektrycznego.
+3. Uruchom laptop i poczekaj na system.
+4. Wybierz odpowiednie źródło obrazu HDMI w monitorze.
+5. Otwórz ustawienia ekranu w systemie operacyjnym.
+6. Sprawdź i ustaw poprawną rozdzielczość ekranu.
