@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Koło Jednostkowe – gra z trygonometrii</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1117;--card:#161c28;--card2:#1d2536;--line:#2a3550;--tx:#e6eaf5;--mu:#8b97b8;--ac:#6c8cff;--ok:#3ddc97;--bad:#ff5d73;--warn:#ffc857;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:inherit}
+html,body{margin:0}
+body{background:radial-gradient(1200px 600px at 20% -10%,#1b2447,var(--bg));color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;padding:12px}
+.wrap{max-width:1100px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+h1{font-size:1.25rem;margin:0}
+h1 span{color:var(--ac)}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px 12px;font-size:.85rem;color:var(--mu)}
+.chip b{display:block;color:var(--tx);font-size:1.1rem;line-height:1.2}
+.chip.combo b{color:var(--warn)}
+main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+#cvbox{display:flex;justify-content:center;touch-action:none}
+canvas{max-width:100%;border-radius:12px;background:#10151f;cursor:crosshair;touch-action:none}
+.bar{height:8px;background:var(--card2);border-radius:99px;overflow:hidden;margin-bottom:12px}
+#tb{height:100%;width:100%;background:linear-gradient(90deg,var(--ok),var(--warn),var(--bad));transform-origin:left}
+.tag{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ac)}
+#qt{font-size:1.3rem;font-weight:600;margin:6px 0 14px;min-height:3.6em}
+#opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{font:inherit;color:var(--tx);background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;transition:.15s}
+button:hover:not(:disabled){border-color:var(--ac);transform:translateY(-1px)}
+button:disabled{cursor:default;opacity:.9}
+button.ok{background:#12372b;border-color:var(--ok)}
+button.bad{background:#3d1a23;border-color:var(--bad)}
+.pri{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600;width:100%;margin-top:10px}
+#sel{color:var(--mu);margin-top:10px;text-align:center}
+#fb{margin-top:12px;padding:12px;border-radius:12px;background:var(--card2);font-size:.95rem;display:none}
+.okc{color:var(--ok)}.badc{color:var(--bad)}
+.hide{display:none!important}
+#ov{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+#ov .card{max-width:480px;text-align:center}
+#ov h2{margin:0 0 8px}
+#ov p{color:var(--mu)}
+#pop{position:fixed;left:50%;top:30%;transform:translateX(-50%);font-size:2rem;font-weight:800;color:var(--ok);pointer-events:none;opacity:0}
+#pop.go{animation:pp 1s ease-out}
+@keyframes pp{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-60px)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>📐 Koło <span>Jednostkowe</span></h1>
+<div class="stats">
+<div class="chip">Wynik<b id="sc">0</b></div>
+<div class="chip combo">Seria<b id="cb">×1.0</b></div>
+<div class="chip">Poziom<b id="lv">1</b></div>
+<div class="chip">Życia<b id="li">❤❤❤</b></div>
+<div class="chip">Rekord<b id="bs">0</b></div>
+</div>
+</header>
+<main>
+<section class="card" id="cvbox"><canvas id="cv"></canvas></section>
+<section class="card">
+<div class="bar"><div id="tb"></div></div>
+<div class="tag" id="tg"></div>
+<div id="qt"></div>
+<div id="opts"></div>
+<div id="sel" class="hide"></div>
+<button class="pri hide" id="conf">Zatwierdź kąt</button>
+<div id="fb"></div>
+<button class="pri hide" id="nx">Dalej (Enter) →</button>
+</section>
+</main>
+</div>
+<div id="pop"></div>
+<div id="ov"><div class="card">
+<h2 id="ovt">Trygonometria na kole jednostkowym</h2>
+<p id="ovp">Zaznaczaj kąty na kole, oblicz wartości sin, cos, tg, zamieniaj stopnie na radiany i rozpoznawaj tożsamości. Masz 3 życia. Im szybciej i dłuższa seria, tym więcej punktów. Poziom rośnie co 4 dobre odpowiedzi.<br><br>Sterowanie: mysz / dotyk na kole, strzałki ←→ (zmiana o 15°), klawisze 1–4, Enter.</p>
+<button class="pri" id="go">Start</button>
+</div></div>
+<script>
+const $=id=>document.getElementById(id),D=Math.PI/180,NM={sin:'sin',cos:'cos',tan:'tg'};
+const F={sin:a=>Math.sin(a*D),cos:a=>Math.cos(a*D),tan:a=>Math.tan(a*D)};
+const T={0:'0',.5:'1/2',.7071:'√2/2',.866:'√3/2',1:'1',.5774:'√3/3',1.7321:'√3'};
+const und=(fn,a)=>fn==='tan'&&Math.abs(Math.cos(a*D))<1e-9;
+function val(fn,a){if(und(fn,a))return'nie istnieje';const v=F[fn](a),r=Math.round(Math.abs(v)*1e4)/1e4;return r===0?'0':(v<0?'−':'')+T[r]}
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+function rad(a){if(a===0)return'0';const g=gcd(a,180),n=a/g,d=180/g;return(n===1?'π':n+'π')+(d>1?'/'+d:'')}
+const ANG=[...new Set([...Array(12).keys()].map(i=>i*30).concat([...Array(8).keys()].map(i=>i*45)))].sort((a,b)=>a-b);
+const RN=['I','II','III','IV'],quad=a=>a%90===0?0:Math.floor(a/90)+1;
+const sgn=(fn,a)=>{const v=F[fn](a);return Math.abs(v)<1e-9?'0':v>0?'+':'−'};
+const rnd=n=>Math.floor(Math.random()*n),pick=a=>a[rnd(a.length)],shuf=a=>a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(x=>x[1]);
+const poolMax=l=>l<2?90:l<3?180:359,pool=l=>ANG.filter(a=>a<=poolMax(l));
+let S={},tm=null;
+try{S.best=+localStorage.getItem('trig_best')||0}catch(e){S.best=0}
+
+/* ---------- Canvas ---------- */
+const cv=$('cv'),cx=cv.getContext('2d');let W=0,dpr=1,hover=null,marks=[],signs=false;
+function size(){const w=Math.max(260,Math.min($('cvbox').clientWidth-28,560));dpr=window.devicePixelRatio||1;cv.style.width=cv.style.height=w+'px';cv.width=cv.height=w*dpr;W=w;draw()}
+function draw(){
+const c=cx,o=W/2,r=W*.33,P=(a,k=1)=>[o+r*k*Math.cos(a*D),o-r*k*Math.sin(a*D)];
+c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,W);
+c.strokeStyle='#33405a';c.lineWidth=1;c.beginPath();c.moveTo(8,o);c.lineTo(W-8,o);c.moveTo(o,8);c.lineTo(o,W-8);c.stroke();
+c.fillStyle='#5b678a';c.font=`${W/38}px system-ui`;c.textAlign='left';c.textBaseline='middle';c.fillText('x',W-16,o-10);c.fillText('y',o+8,12);
+c.strokeStyle='#6c7bb0';c.lineWidth=2;c.beginPath();c.arc(o,o,r,0,7);c.stroke();
+c.font=`${Math.max(9,W/50)}px system-ui`;c.textAlign='center';
+for(const a of ANG){const[x,y]=P(a);c.fillStyle='#8b97c9';c.beginPath();c.arc(x,y,2.6,0,7);c.fill();const[lx,ly]=P(a,1.2);c.fillText(a+'°',lx,ly)}
+if(signs){c.font=`${Math.max(10,W/42)}px system-ui`;for(let q=1;q<=4;q++){const a=q*90-45,[x,y]=P(a,.55);c.fillStyle='#ffc857';c.fillText('sin '+sgn('sin',a),x,y-W*.03);c.fillText('cos '+sgn('cos',a),x,y);c.fillText('tg '+sgn('tan',a),x,y+W*.03);c.fillStyle='#5b678a';c.fillText(RN[q-1],...P(a,.18))}}
+const ray=(a,col,dash)=>{const[x,y]=P(a);c.strokeStyle=col;c.lineWidth=3;c.setLineDash(dash?[6,5]:[]);c.beginPath();c.moveTo(o,o);c.lineTo(x,y);c.stroke();c.setLineDash([]);c.lineWidth=1.5;c.beginPath();c.arc(o,o,r*.2,0,-a*D,true);c.stroke();return[x,y]};
+if(hover!==null){const[x,y]=ray(hover,'#ffc857',true);c.fillStyle='#ffc857';c.beginPath();c.arc(x,y,6,0,7);c.fill()}
+for(const m of marks){const[x,y]=ray(m.a,m.col);c.strokeStyle=m.col;c.lineWidth=1.2;c.setLineDash([4,4]);c.beginPath();c.moveTo(x,y);c.lineTo(x,o);c.moveTo(x,y);c.lineTo(o,y);c.stroke();c.setLineDash([]);
+c.fillStyle=m.col;c.beginPath();c.arc(x,y,6,0,7);c.fill();c.beginPath();c.arc(x,o,3.5,0,7);c.arc(o,y,3.5,0,7);c.fill();
+const t=`(${val('cos',m.a)}; ${val('sin',m.a)})`;c.font=`bold ${Math.max(10,W/40)}px system-ui`;const[lx,ly]=P(m.a,.66),tw=c.measureText(t).width+10;c.fillStyle='#0d1117e6';c.fillRect(lx-tw/2,ly-10,tw,20);c.fillStyle=m.col;c.fillText(t,lx,ly+1)}
+}
+function ang(e){const b=cv.getBoundingClientRect(),x=e.clientX-b.left-b.width/2,y=b.height/2-(e.clientY-b.top);let a=Math.round(Math.atan2(y,x)/D/15)*15;return(a+360)%360}
+function setSel(a){hover=a;$('sel').textContent=`Wybrany kąt: ${a}° (${rad(a)})`;draw()}
+const clickable=()=>S.q&&S.q.type==='click'&&!S.ans;
+cv.addEventListener('pointermove',e=>{if(clickable()&&e.pointerType==='mouse')setSel(ang(e))});
+cv.addEventListener('pointerdown',e=>{if(clickable()){setSel(ang(e));if(e.pointerType==='mouse')finish(S.q.valid.includes(hover),hover)}});
+
+/* ---------- Pytania ---------- */
+function expl(a){const q=quad(a);return`α = ${a}° = ${rad(a)} → P(cos α; sin α) = (${val('cos',a)}; ${val('sin',a)}), tg α = ${val('tan',a)}. ${q?`Ćwiartka ${RN[q-1]}: sin ${sgn('sin',a)}, cos ${sgn('cos',a)}, tg ${sgn('tan',a)}.`:'Kąt leży na osi układu.'}`}
+function qClick(l){const fns=l<3?['sin','cos']:['sin','cos','tan'],fn=pick(fns),mx=poolMax(l);let a;do a=pick(pool(l));while(und(fn,a));
+const v=F[fn](a),valid=[];for(let b=0;b<=mx;b+=15)if(!und(fn,b)&&Math.abs(F[fn](b)-v)<1e-6)valid.push(b);
+const rg=l<2?'0°–90°':l<3?'0°–180°':'0°–360°';
+return{type:'click',lim:25-l,tag:'Koło jednostkowe',txt:`Zaznacz na kole kąt α (${rg}), dla którego ${NM[fn]} α = ${val(fn,a)}`,valid,marks:valid,
+why:p=>valid.map(expl).join('<br>')+(p!=null&&p!=='time'?`<br><span class="badc">Twój wybór: ${expl(p)}</span>`:'')}}
+function qValue(l){const fn=pick(l<3?['sin','cos']:['sin','cos','tan']);let a;do a=pick(pool(l));while(und(fn,a));
+const ok=val(fn,a),s=new Set([ok]);if(ok!=='0'&&ok!=='nie istnieje')s.add(ok[0]==='−'?ok.slice(1):'−'+ok);
+while(s.size<4)s.add(val(pick(['sin','cos','tan']),pick(ANG)));
+const r=l>=3&&Math.random()<.5;
+return{type:'choice',lim:18-l,tag:'Wartość funkcji',txt:`Ile wynosi ${NM[fn]}(${r?rad(a):a+'°'})?`,opts:shuf([...s]),ok,marks:[a],why:()=>expl(a)}}
+function qConv(l){const a=pick(pool(l).filter(x=>x>0)),d=Math.random()<.5,s=new Set();const ok=d?rad(a):a+'°';s.add(ok);
+while(s.size<4){const b=pick(ANG.filter(x=>x>0));s.add(d?rad(b):b+'°')}
+return{type:'choice',lim:16-l,tag:'Stopnie ↔ radiany',txt:d?`Zamień ${a}° na radiany`:`Zamień ${rad(a)} na stopnie`,opts:shuf([...s]),ok,marks:[a],why:()=>`${a}° = ${a}·π/180 = ${rad(a)} (180° = π rad). `+expl(a)}}
+function qSign(l){const q=1+rnd(4),a=q*90-45,pr=pick([['sin','cos'],['sin','tan'],['cos','tan']]);
+return{type:'choice',lim:18-l,tag:'Znaki w ćwiartkach',txt:`W której ćwiartce ${NM[pr[0]]} α ${sgn(pr[0],a)==='+'?'>':'<'} 0 oraz ${NM[pr[1]]} α ${sgn(pr[1],a)==='+'?'>':'<'} 0?`,opts:RN.map(x=>x+' ćwiartka'),ok:RN[q-1]+' ćwiartka',marks:[a],why:()=>`To ćwiartka ${RN[q-1]}. `+expl(a).split('. ')[1]}}
+const ID=[
+['sin²α + cos²α =',['1','0','2','sin 2α'],'Jedynka trygonometryczna – wynika z twierdzenia Pitagorasa dla punktu (cos α; sin α) na okręgu o promieniu 1.'],
+['tg α =',['sin α / cos α','cos α / sin α','sin α · cos α','1 / sin α'],'tg α to stosunek y do x punktu na kole, czyli sin α / cos α.'],
+['sin(−α) =',['−sin α','sin α','cos α','−cos α'],'Odbicie punktu względem osi OX zmienia znak y, a x zostaje.'],
+['cos(−α) =',['cos α','−cos α','sin α','−sin α'],'Odbicie względem osi OX nie zmienia współrzędnej x.'],
+['sin(180° − α) =',['sin α','−sin α','cos α','−cos α'],'Odbicie względem osi OY: y bez zmian, x zmienia znak.'],
+['cos(180° − α) =',['−cos α','cos α','sin α','−sin α'],'Odbicie względem osi OY zmienia znak x.'],
+['sin(2α) =',['2 sin α cos α','2 sin α','sin²α − cos²α','sin α + cos α'],'Wzór na sinus kąta podwojonego.'],
+['cos(2α) =',['cos²α − sin²α','2 cos α','2 sin α cos α','1 + 2 sin²α'],'Wzór na cosinus kąta podwojonego.'],
+['1 + tg²α =',['1 / cos²α','1 / sin²α','sin²α','tg 2α'],'Dziel jedynkę trygonometryczną stronami przez cos²α.'],
+['Jeśli sin α = 3/5 i α jest w I ćwiartce, to cos α =',['4/5','−4/5','3/4','5/4'],'cos²α = 1 − 9/25 = 16/25, a w I ćwiartce cos jest dodatni, więc cos α = 4/5.'],
+['Jeśli cos α = −5/13 i α jest w II ćwiartce, to sin α =',['12/13','−12/13','5/12','−5/12'],'sin²α = 1 − 25/169 = 144/169, a w II ćwiartce sin jest dodatni.']];
+function qIdent(){const i=pick(ID);return{type:'choice',lim:20,tag:'Tożsamości',txt:i[0],opts:shuf(i[1]),ok:i[1][0],marks:[],why:()=>i[2]}}
+function gen(){const l=S.lvl,t=['click','value','conv'];if(l>=2)t.push('sign','click');if(l>=3)t.push('ident','value','click');const k=pick(t);
+return{click:qClick,value:qValue,conv:qConv,sign:qSign,ident:qIdent}[k](l)}
+
+/* ---------- Przebieg gry ---------- */
+function hud(){$('sc').textContent=S.score;$('cb').textContent='×'+(1+Math.min(Math.max(S.combo-1,0),9)*.1).toFixed(1)+(S.combo>1?` (${S.combo})`:'');$('lv').textContent=S.lvl;$('li').textContent='❤'.repeat(Math.max(S.lives,0))+'🖤'.repeat(Math.max(3-S.lives,0));$('bs').textContent=S.best}
+function start(){Object.assign(S,{score:0,combo:0,lives:3,lvl:1,solved:0});$('ov').classList.add('hide');next()}
+function next(){if(S.lives<=0)return over();S.lvl=Math.min(6,1+Math.floor(S.solved/4));S.q=gen();S.ans=false;hover=null;marks=[];signs=false;
+$('fb').style.display='none';$('nx').classList.add('hide');$('tg').textContent=S.q.tag;$('qt').textContent=S.q.txt;
+const o=$('opts');o.innerHTML='';const ck=S.q.type==='click';$('conf').classList.toggle('hide',!ck);$('sel').classList.toggle('hide',!ck);$('sel').textContent='Kliknij lub dotknij koła, aby wybrać kąt';
+if(!ck)S.q.opts.forEach((t,i)=>{const b=document.createElement('button');b.textContent=`${i+1}. ${t}`;b.dataset.t=t;b.onclick=()=>finish(t===S.q.ok,t);o.appendChild(b)});
+hud();draw();S.t0=Date.now();clearInterval(tm);tm=setInterval(tick,100);tick()}
+function tick(){const f=1-(Date.now()-S.t0)/1000/S.q.lim;$('tb').style.transform=`scaleX(${Math.max(f,0)})`;if(f<=0)finish(false,'time')}
+function finish(good,pk){if(S.ans)return;S.ans=true;clearInterval(tm);
+const rem=Math.max(0,S.q.lim-(Date.now()-S.t0)/1000);let h;
+if(good){S.combo++;S.solved++;const m=1+Math.min(S.combo-1,9)*.1,bn=Math.round(rem/S.q.lim*100),p=Math.round((100+bn+20*S.lvl)*m);S.score+=p;
+h=`<b class="okc">✔ Dobrze! +${p} pkt</b> <small>(baza ${100+20*S.lvl} + czas ${bn}, mnożnik serii ×${m.toFixed(1)})</small>`;
+const e=$('pop');e.textContent='+'+p;e.classList.remove('go');void e.offsetWidth;e.classList.add('go')}
+else{S.combo=0;S.lives--;h=`<b class="badc">${pk==='time'?'⏱ Koniec czasu!':'✘ Niepoprawnie.'}</b>`;if(S.q.type==='choice')h+=` Poprawna odpowiedź: <b>${S.q.ok}</b>`}
+if(S.score>S.best){S.best=S.score;try{localStorage.setItem('trig_best',S.best)}catch(e){}}
+h+='<br>'+S.q.why(pk);$('fb').innerHTML=h;$('fb').style.display='block';
+marks=S.q.marks.map(a=>({a,col:'#3ddc97'}));if(S.q.type==='click'&&!good&&typeof pk==='number')marks.push({a:pk,col:'#ff5d73'});
+signs=true;hover=null;draw();
+[...$('opts').children].forEach(b=>{b.disabled=true;if(b.dataset.t===S.q.ok)b.classList.add('ok');else if(b.dataset.t===pk)b.classList.add('bad')});
+$('conf').classList.add('hide');$('nx').classList.remove('hide');$('nx').textContent=S.lives>0?'Dalej (Enter) →':'Zakończ (Enter)';hud()}
+function over(){$('ovt').textContent='Koniec gry!';$('ovp').innerHTML=`Wynik: <b style="color:var(--tx)">${S.score}</b> · Poziom: ${S.lvl} · Rekord: ${S.best}<br>Poprawne odpowiedzi: ${S.solved}`;$('go').textContent='Zagraj ponownie';$('ov').classList.remove('hide')}
+$('go').onclick=start;$('nx').onclick=next;$('conf').onclick=()=>{if(clickable()&&hover!==null)finish(S.q.valid.includes(hover),hover)};
+addEventListener('keydown',e=>{if(!S.q||!$('ov').classList.contains('hide'))return;
+if(e.key==='Enter'){e.preventDefault();S.ans?next():$('conf').click()}
+else if(!S.ans&&S.q.type==='choice'&&/^[1-4]$/.test(e.key))$('opts').children[e.key-1]?.click();
+else if(clickable()&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){setSel(((hover??0)+(e.key==='ArrowLeft'?15:-15)+360)%360)}});
+addEventListener('resize',size);size();hud();
+</script>
+</body>
+</html>
